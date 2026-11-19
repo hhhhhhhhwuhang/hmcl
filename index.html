@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>Unity WebGL Player | 莆仙戏脸谱涂色游戏h5</title>
+    <link rel="shortcut icon" href="TemplateData/favicon.ico">
+    <link rel="stylesheet" href="TemplateData/style.css">
+    <link rel="manifest" href="manifest.webmanifest">
+    <style>
+      /* =====================================================
+         桌面端：保持 Unity 游戏 9:16 比例，并在窗口中居中
+         手机端：同样锁 9:16，屏幕更长就上下留边，绝不拉伸
+         ===================================================== */
+      html.unity-desktop-view,
+      html.unity-desktop-view body {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        background: #f4f1e9;
+      }
+
+      html.unity-desktop-view #unity-container {
+        position: fixed !important;
+        left: 0 !important;
+        top: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        width: 100vw !important;
+        height: 100vh !important;
+        margin: 0 !important;
+        transform: none !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        overflow: hidden !important;
+        background: #f4f1e9;
+      }
+
+      html.unity-desktop-view #unity-canvas {
+        display: block !important;
+        width: min(100vw, calc(100vh * 9 / 16)) !important;
+        height: min(100vh, calc(100vw * 16 / 9)) !important;
+        max-width: 100vw !important;
+        max-height: 100vh !important;
+        aspect-ratio: 9 / 16;
+      }
+
+      /* 手机端：之前没有任何约束，TemplateData/style.css 里的
+         #unity-canvas{width:100%;height:100%} 会把画布直接填满，
+         遇到 19.5:9 / 20:9 的全面屏就会纵向拉长。
+         高度优先用 dvh（动态视口，地址栏收起时跟着变），
+         不支持的浏览器自动退回前一条 vh。 */
+      html.unity-mobile-view,
+      html.unity-mobile-view body {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        overscroll-behavior: none;
+        background: #f4f1e9;
+      }
+
+      html.unity-mobile-view #unity-container {
+        position: fixed !important;
+        left: 0 !important;
+        top: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        width: 100vw !important;
+        height: 100vh !important;
+        height: 100dvh !important;
+        margin: 0 !important;
+        transform: none !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        overflow: hidden !important;
+        background: #f4f1e9;
+      }
+
+      html.unity-mobile-view #unity-canvas {
+        display: block !important;
+        /* vh 打底，dvh 覆盖；两条都写才是安全的回退写法 */
+        width: min(100vw, calc(100vh * 9 / 16)) !important;
+        height: min(100vh, calc(100vw * 16 / 9)) !important;
+        width: min(100vw, calc(100dvh * 9 / 16)) !important;
+        height: min(100dvh, calc(100vw * 16 / 9)) !important;
+        max-width: 100vw !important;
+        max-height: 100vh !important;
+        max-height: 100dvh !important;
+        aspect-ratio: 9 / 16;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="unity-container">
+      <canvas id="unity-canvas" width=720 height=1280 tabindex="-1"></canvas>
+      <div id="unity-loading-bar">
+        <div id="unity-logo"></div>
+        <div id="unity-progress-bar-empty">
+          <div id="unity-progress-bar-full"></div>
+        </div>
+      </div>
+      <div id="unity-warning"> </div>
+    </div>
+    <script>
+      window.addEventListener("load", function () {
+        if ("serviceWorker" in navigator) {
+          navigator.serviceWorker.register("ServiceWorker.js");
+        }
+      });
+
+      var container = document.querySelector("#unity-container");
+      var canvas = document.querySelector("#unity-canvas");
+      var loadingBar = document.querySelector("#unity-loading-bar");
+      var progressBarFull = document.querySelector("#unity-progress-bar-full");
+      var warningBanner = document.querySelector("#unity-warning");
+
+      // =====================================================
+      //  鼠标键拦一下浏览器默认动作
+      //  游戏里用鼠标中键 / 右键拖动脸谱，但浏览器默认会：
+      //    中键 → 进入"自动滚动"模式，拖着拖着页面跟着滚
+      //    右键 → 弹出上下文菜单，直接把拖动打断
+      //  这里只 preventDefault，不阻止事件本身，Unity 照样能收到。
+      // =====================================================
+      canvas.addEventListener('mousedown', function (e) {
+        if (e.button === 1) e.preventDefault();
+      });
+
+      canvas.addEventListener('auxclick', function (e) {
+        if (e.button === 1) e.preventDefault();
+      });
+
+      canvas.addEventListener('contextmenu', function (e) {
+        e.preventDefault();
+      });
+
+      // Shows a temporary message banner/ribbon for a few seconds, or
+      // a permanent error message on top of the canvas if type=='error'.
+      // If type=='warning', a yellow highlight color is used.
+      // Modify or remove this function to customize the visually presented
+      // way that non-critical warnings and error messages are presented to
+      // the user.
+      function unityShowBanner(msg, type) {
+        function updateBannerVisibility() {
+          warningBanner.style.display = warningBanner.children.length ? 'block' : 'none';
+        }
+        var div = document.createElement('div');
+        div.innerHTML = msg;
+        warningBanner.appendChild(div);
+        if (type == 'error') div.style = 'background: red; padding: 10px;';
+        else {
+          if (type == 'warning') div.style = 'background: yellow; padding: 10px;';
+          setTimeout(function() {
+            warningBanner.removeChild(div);
+            updateBannerVisibility();
+          }, 5000);
+        }
+        updateBannerVisibility();
+      }
+
+      // ★ 每次重新出包都必须改这个版本号（唯一改一处即可）。
+      // Build/ 下的文件是长缓存（Cache-Control: immutable），浏览器和 CDN 都不会主动回源，
+      // 只有 URL 变化才会拿到新包。忘记改 = 玩家永远看到旧版本。
+      var assetVersion = "1.0";
+
+      var buildUrl = "Build";
+      var loaderUrl = buildUrl + "/pxxlptsyx.loader.js?" + assetVersion;
+      var config = {
+        dataUrl: buildUrl + "/pxxlptsyx.data.unityweb?" + assetVersion,
+        frameworkUrl: buildUrl + "/pxxlptsyx.framework.js.unityweb?" + assetVersion,
+        codeUrl: buildUrl + "/pxxlptsyx.wasm.unityweb?" + assetVersion,
+        streamingAssetsUrl: "StreamingAssets",
+        // 保持 Unity 渲染分辨率固定在画布原始尺寸（720x1280），
+        // 由 CSS 负责把可见画布缩放到窗口内。
+        // 这样既不会因为窗口变大而白白提高渲染开销，也不会变形。
+        matchWebGLToCanvasSize: false,
+        companyName: "幻梦晨露",
+        productName: "莆仙戏脸谱涂色游戏h5",
+        productVersion: "0.8",
+        showBanner: unityShowBanner,
+      };
+
+      var isMobileDevice = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+      if (isMobileDevice) {
+        // 手机端：锁 9:16 居中，屏幕比例不符就上下留边，不做拉伸。
+        //
+        // 不用 height=device-height：这是非标准属性，各浏览器处理不一致
+        // （有的按含地址栏算、有的不含），正是"有的浏览器画面被拉长"的根源。
+        // shrink-to-fit 在 iOS 9 之后已废弃，一并去掉。
+        var meta = document.createElement('meta');
+        meta.name = 'viewport';
+        meta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
+        document.getElementsByTagName('head')[0].appendChild(meta);
+
+        document.documentElement.classList.add('unity-mobile-view');
+      } else {
+        // 电脑端：启用 9:16 居中布局。
+        // 用设备类型判断而不是屏幕宽度，所以缩小电脑窗口时也保持竖屏。
+        document.documentElement.classList.add('unity-desktop-view');
+      }
+
+      loadingBar.style.display = "block";
+
+      var script = document.createElement("script");
+      script.src = loaderUrl;
+      script.onload = () => {
+        createUnityInstance(canvas, config, (progress) => {
+          progressBarFull.style.width = 100 * progress + "%";
+        }).then((unityInstance) => {
+          loadingBar.style.display = "none";
+        }).catch((message) => {
+          alert(message);
+        });
+      };
+      document.body.appendChild(script);
+    </script>
+  </body>
+</html>
