@@ -1,7 +1,5 @@
 # hmcl
 
-<img width="845" height="530" alt="image" src="https://github.com/user-attachments/assets/8a284748-0d64-4a4f-9206-33965211eb7c" />
-
-<img width="847" height="528" alt="image" src="https://github.com/user-attachments/assets/7dff4670-90e5-42cc-b7e1-eab3ff4ca068" />
-
-<img width="842" height="533" alt="image" src="https://github.com/user-attachments/assets/5b4777ad-6a68-4659-a596-c08d61461654" />
+<img width="327" height="583" alt="屏幕截图 2026-11-19 203519" src="https://github.com/user-attachments/assets/d7da97d1-07de-4953-b22a-2259766f970b" />
+<img width="323" height="579" alt="屏幕截图 2026-11-19 203527" src="https://github.com/user-attachments/assets/a832ddc5-b7b2-486d-bc68-e29ef9c91b5d" />
+<img width="329" height="572" alt="屏幕截图 2026-11-19 203533" src="https://github.com/user-attachments/assets/9786d0cc-0599-46df-b5b0-ca235e9c1268" />
